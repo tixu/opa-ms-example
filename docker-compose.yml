@@ -23,10 +23,8 @@ services:
       - 7002:8080 
   ui:
     build: ui
-    configs: 
-       - source: nginx_config
-         target: /etc/nginx/nginx.conf:ro
-
+    volumes:  
+       - ./ui/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
      - 8001:80
   opa:
@@ -37,4 +35,4 @@ services:
  
 configs:
   nginx_config:
-    file: ./reverse-proxy/nginx.conf
+    file: ./ui/nginx.conf
