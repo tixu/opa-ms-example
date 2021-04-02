@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-
+    "fmt"
 	"github.com/gorilla/mux"
 )
 
@@ -36,6 +36,12 @@ var customers = allCustomers{
 		Description:  "A large Office space company",
 		CustomerType: "LE",
 	},
+	{
+		CustomerID:   "4",
+		CompanyName:  "Smals",
+		Description:  "A smals Office space company",
+		CustomerType: "LE",
+	},
 }
 
 func getCustomer(w http.ResponseWriter, r *http.Request) {
@@ -52,9 +58,14 @@ func getAllCustomers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(customers)
 }
 
+func getInfo(w http.ResponseWriter, r *http.Request){
+	fmt.Fprintf(w, "Application Customer")
+}
+
 func main() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/customers", getAllCustomers).Methods("GET")
 	router.HandleFunc("/customer/{id}", getCustomer).Methods("GET")
+	router.HandleFunc("/", getInfo).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

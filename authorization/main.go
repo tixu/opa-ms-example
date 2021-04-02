@@ -10,6 +10,14 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/stdout"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/semconv"
 )
 
 type opaResult struct {
@@ -30,7 +38,30 @@ type opaRequest struct {
 	Input inputJSONData `json:"input"`
 }
 
+func initTracer() {
+	// Create stdout exporter to be able to retrieve
+	// the collected spans.
+	exporter, err := stdout.NewExporter(stdout.WithPrettyPrint())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// For the demonstration, use sdktrace.AlwaysSample sampler to sample all traces.
+	// In a production application, use sdktrace.ProbabilitySampler with a desired probability.
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithSyncer(exporter),
+		sdktrace.WithResource(resource.NewWithAttributes(semconv.ServiceNameKey.String("ExampleService"))),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+}
+
 func authRequest(w http.ResponseWriter, r *http.Request) {
+
 	var apiEndPoint = r.Header.Get("X-Original-Uri")
 	var authHeader = r.Header.Get("Authorization")
 	var reqMethod = r.Header.Get("X-Original-METHOD")
@@ -40,7 +71,7 @@ func authRequest(w http.ResponseWriter, r *http.Request) {
 	varOpaRequest := &opaRequest{Input: *varInputJSONData}
 	jsonValue, _ := json.Marshal(varOpaRequest)
 	fmt.Println(string(jsonValue))
-	response, err := http.Post("http://localhost:8181/v1/data/httpapi/authz", "application/json", bytes.NewBuffer(jsonValue))
+	response, err := http.Post("http://opa:8181/v1/data/httpapi/authz", "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
 		fmt.Printf("OPA request failed with error %s\n", err)
 		w.WriteHeader(http.StatusForbidden)
@@ -59,10 +90,14 @@ func authRequest(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}
 	}
+
 }
 
 func main() {
+	initTracer()
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/authorize", authRequest).Methods("GET")
+	otelAuthorizationHandler := otelhttp.NewHandler(http.HandlerFunc(authRequest), "authorize")
+	router.Handle("/authorize", otelAuthorizationHandler).Methods("GET")
+
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

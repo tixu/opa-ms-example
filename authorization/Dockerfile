@@ -1,10 +1,12 @@
-FROM golang:1.13.4-alpine3.10 as builder
+FROM golang:alpine3.13 as builder
 RUN mkdir /go/src/authorization
 RUN apk add git
-RUN go get github.com/gorilla/mux
 COPY . /go/src/authorization
 WORKDIR /go/src/authorization
+RUN go mod tidy
 RUN go build -o /go/bin/authorization .
+
+
 
 FROM alpine:latest
 RUN mkdir /authorization

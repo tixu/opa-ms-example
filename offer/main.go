@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
+	
 	"github.com/gorilla/mux"
 )
 
@@ -101,8 +102,13 @@ func rangeIn(low, hi int) int {
 	return low + rand.Intn(hi-low)
 }
 
+func getInfo(w http.ResponseWriter, r *http.Request){
+	fmt.Fprintf(w, "Application Offer")
+}
+
 func main() {
 	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/", getInfo).Methods("GET")
 	router.HandleFunc("/offer", createOffer).Methods("POST")
 	router.HandleFunc("/offers", getAllOffers).Methods("GET")
 	router.HandleFunc("/offer/{id}", getOffer).Methods("GET")
